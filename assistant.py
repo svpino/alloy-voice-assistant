@@ -2,6 +2,7 @@ import base64
 from threading import Lock, Thread
 
 import cv2
+import openai
 from cv2 import VideoCapture, imencode
 from dotenv import load_dotenv
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -10,7 +11,6 @@ from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_google_genai import ChatGoogleGenerativeAI
-from openai import audio
 from pyaudio import PyAudio, paInt16
 from speech_recognition import Microphone, Recognizer, UnknownValueError
 
@@ -79,12 +79,13 @@ class Assistant:
 
         print("Response:", response)
 
-        self._tts(response)
+        if response:
+            self._tts(response)
 
     def _tts(self, response):
         player = PyAudio().open(format=paInt16, channels=1, rate=24000, output=True)
 
-        with audio.speech.with_streaming_response.create(
+        with openai.audio.speech.with_streaming_response.create(
             model="tts-1",
             voice="alloy",
             response_format="pcm",
