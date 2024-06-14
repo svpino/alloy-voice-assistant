@@ -39,14 +39,12 @@ class WebcamStream:
         while self.running:
             _, frame = self.stream.read()
 
-            self.lock.acquire()
-            self.frame = frame
-            self.lock.release()
+            with self.lock:
+                self.frame = frame
 
     def read(self, encode=False):
-        self.lock.acquire()
-        frame = self.frame.copy()
-        self.lock.release()
+        with self.lock:
+            frame = self.frame.copy()
 
         if encode:
             _, buffer = imencode(".jpeg", frame)
@@ -94,6 +92,7 @@ class Assistant:
         ) as stream:
             for chunk in stream.iter_bytes(chunk_size=1024):
                 player.write(chunk)
+        player.close()
 
     def _create_inference_chain(self, model):
         SYSTEM_PROMPT = """
@@ -138,8 +137,8 @@ webcam_stream = WebcamStream().start()
 
 model = ChatGoogleGenerativeAI(model="gemini-1.5-flash-latest")
 
-# You can use OpenAI's GPT-4o model instead of Gemini Flash
-# by uncommenting the following line:
+# Możesz użyć OpenAI GPT-4o zamiast Gemini Flash
+# odkomentowując następującą linię:
 # model = ChatOpenAI(model="gpt-4o")
 
 assistant = Assistant(model)
@@ -161,11 +160,12 @@ with microphone as source:
 
 stop_listening = recognizer.listen_in_background(microphone, audio_callback)
 
-while True:
-    cv2.imshow("webcam", webcam_stream.read())
-    if cv2.waitKey(1) in [27, ord("q")]:
-        break
-
-webcam_stream.stop()
-cv2.destroyAllWindows()
-stop_listening(wait_for_stop=False)
+try:
+    while True:
+        cv2.imshow("webcam", webcam_stream.read())
+        if cv2.waitKey(1) in [27, ord("q")]:
+            break
+finally:
+    webcam_stream.stop()
+    cv2.destroyAllWindows()
+    stop_listening(wait_for_stop=False)
